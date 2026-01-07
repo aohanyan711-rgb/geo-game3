@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Աշխարհագրական Դասակարգում - Աշխարհամասեր</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; overflow-x: hidden; }
+        #start-overlay, #result-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.98); display: flex;
+            flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .btn-main {
+            padding: 18px 45px; font-size: 1.4rem; background: #10b981;
+            color: white; border: none; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3); transition: 0.3s; font-weight: bold;
+        }
+        .btn-main:hover { transform: translateY(-3px); background: #059669; }
+        .header {
+            background: #1e293b; padding: 15px; display: flex;
+            justify-content: space-around; border-bottom: 2px solid #38bdf8;
+            position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .stat-box { font-size: 1.1rem; font-weight: bold; }
+        .green { color: #10b981; }
+        .red { color: #ef4444; }
+        .yellow { color: #fbbf24; }
+        #words-container {
+            background: #334155; padding: 25px; border-radius: 12px;
+            margin: 20px auto; min-height: 100px; display: flex;
+            flex-wrap: wrap; justify-content: center; gap: 10px;
+            border: 2px dashed #94a3b8; max-width: 1000px;
+        }
+        .word {
+            background: #fbbf24; color: #000; padding: 8px 15px;
+            border-radius: 8px; cursor: grab; font-weight: bold;
+            user-select: none; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            font-size: 0.9rem;
+        }
+        .countries-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px; max-width: 1200px; margin: 20px auto; padding: 0 20px;
+        }
+        .country-zone {
+            background: #1e293b; border: 2px solid #334155;
+            border-radius: 15px; min-height: 180px; padding: 15px; transition: 0.3s;
+        }
+        .country-zone h2 { color: #38bdf8; margin-top: 0; font-size: 1.3rem; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        .country-zone.over { border-color: #fbbf24; background: #243049; }
+        .placed-word {
+            background: #10b981 !important; color: white !important;
+            margin: 4px; display: inline-block; padding: 6px 12px;
+            border-radius: 6px; font-size: 0.85rem; animation: pop 0.3s ease;
+        }
+        @keyframes pop { 0% { transform: scale(0.5); } 100% { transform: scale(1); } }
+        .wrong-flash { background: #ef4444 !important; color: white !important; }
+        .result-content {
+            background: #1e293b; padding: 40px; border-radius: 25px;
+            max-width: 600px; width: 90%; border: 3px solid #38bdf8; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <h1 style="color: #38bdf8; margin-bottom: 30px;">Աշխարհագրական Օբյեկտների Դասակարգում</h1>
+        <p style="margin-bottom: 20px;">Տեղադրիր անունները համապատասխան աշխարհամասի մեջ</p>
+        <button class="btn-main" onclick="startGame()">ՍԿՍԵԼ ԽԱՂԸ</button>
+    </div>
+
+    <div id="result-overlay" style="display: none;">
+        <div class="result-content">
+            <h1 class="yellow">Խաղի Ավարտ</h1>
+            <p id="final-stats" style="font-size: 1.2rem; line-height: 1.6;"></p>
+            <div id="wrong-summary" style="margin: 20px 0; background: #0f172a; padding: 15px; border-radius: 12px;">
+                <h3 style="margin-top: 0; color: #94a3b8;">Սխալված բառերը.</h3>
+                <div id="wrong-list" style="max-height: 150px; overflow-y: auto; text-align: left; color: #f87171;"></div>
+            </div>
+            <button class="btn-main" onclick="location.reload()">ԿՐԿՆԵԼ ԽԱՂԸ</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="stat-box">Ճիշտ՝ <span id="correct-count" class="green">0</span></div>
+        <div class="stat-box">Սխալ փորձեր՝ <span id="wrong-count" class="red">0</span></div>
+        <div class="stat-box">Ժամանակ՝ <span id="timer" class="yellow">00:00</span></div>
+    </div>
+
+    <div id="words-container"></div>
+    <div class="countries-grid" id="countries-grid"></div>
+
+<script>
+    const gameData = [
+        { name: "Եվրոպա", words: ["ՀՌԵՆՈՍ", "ԱԼՊԵՐ", "ԲԱԼԹԻԿ", "ՊԻՐԻՆԵՅԱՆ", "ԹԵՄԶԱ"] },
+        { name: "Ասիա", words: ["ԳՈԲԻ", "ԲԱՅԿԱԼ", "ԼԵՆԱ", "ՈՒՐԱԼ", "ՋՈՄՈԼՈՒՆԳՄԱ"] },
+        { name: "Հս. Ամերիկա", words: ["ՀՈՒՐՈՆ", "ԿԱԼԻՖՈՌՆԻԱ", "ՆՅՈՒՖԱՈՒՆԴԼԵՆԴ", "ՄԻՍԻՍԻՊԻ", "ՆԻԱԳԱՐԱ"] },
+        { name: "Հվ. Ամերիկա", words: ["ԱՆԽԵԼ", "ՕՐԻՆՈԿՈ", "ԱԿՈՆԿԱԳՈՒԱ", "ԼՅԱՆՈՍ", "ՏԻՏԻԿԱԿԱ"] },
+        { name: "Աֆրիկա", words: ["ԿՈՆԳՈ", "ՍԱՀԱՐԱ", "ՆԵՂՈՍ", "ԱՏԼԱՍԻ", "ՉԱԴ"] },
+        { name: "Ավստրալիա", words: ["ՄՈՒՐԵՅ", "ԲԱՍՍԻ", "ԷՅՐ", "ՏԱՍՄԱՆԻԱ", "ԱՐՆԵՄԼԵՆԴ"] }
+    ];
+
+    let correct = 0, wrong = 0, seconds = 0;
+    let timerInterval;
+    let wrongWords = new Set();
+
+    function startGame() {
+        document.getElementById('start-overlay').style.display = 'none';
+        initGame();
+        startTimer();
+    }
+
+    function initGame() {
+        const wordsContainer = document.getElementById('words-container');
+        const countriesGrid = document.getElementById('countries-grid');
+        let allWords = [];
+
+        gameData.forEach(continent => {
+            const zone = document.createElement('div');
+            zone.className = 'country-zone';
+            zone.innerHTML = `<h2>${continent.name}</h2>`;
+            zone.dataset.target = continent.name;
+            zone.ondragover = e => e.preventDefault();
+            zone.ondragenter = function() { this.classList.add('over'); };
+            zone.ondragleave = function() { this.classList.remove('over'); };
+            zone.ondrop = handleDrop;
+            countriesGrid.appendChild(zone);
+            continent.words.forEach(w => allWords.push({ text: w, continent: continent.name }));
+        });
+
+        allWords.sort(() => Math.random() - 0.5);
+
+        allWords.forEach((wordObj, i) => {
+            const wordEl = document.createElement('div');
+            wordEl.className = 'word';
+            wordEl.innerText = wordObj.text;
+            wordEl.draggable = true;
+            wordEl.id = 'w-' + i;
+            wordEl.dataset.origin = wordObj.continent;
+            wordEl.ondragstart = e => e.dataTransfer.setData('text', e.target.id);
+            wordsContainer.appendChild(wordEl);
+        });
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        this.classList.remove('over');
+        const id = e.dataTransfer.getData('text');
+        const wordEl = document.getElementById(id);
+        if (!wordEl) return;
+
+        const correctContinent = wordEl.dataset.origin;
+        const droppedContinent = this.dataset.target;
+
+        if (correctContinent === droppedContinent) {
+            wordEl.draggable = false;
+            wordEl.className = 'placed-word';
+            this.appendChild(wordEl);
+            correct++;
+            updateStats();
+            checkWin();
+        } else {
+            wrong++;
+            wrongWords.add(wordEl.innerText);
+            wordEl.classList.add('wrong-flash');
+            setTimeout(() => wordEl.classList.remove('wrong-flash'), 500);
+            updateStats();
+        }
+    }
+
+    function updateStats() {
+        document.getElementById('correct-count').innerText = correct;
+        document.getElementById('wrong-count').innerText = wrong;
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            seconds++;
+            let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            let s = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
+        }, 1000);
+    }
+
+    function checkWin() {
+        const total = gameData.reduce((acc, c) => acc + c.words.length, 0);
+        if (correct === total) {
+            clearInterval(timerInterval);
+            showResults();
+        }
+    }
+
+    function showResults() {
+        document.getElementById('result-overlay').style.display = 'flex';
+        document.getElementById('final-stats').innerHTML = `
+            Ճիշտ տեղադրված՝ ${correct}<br>
+            Սխալ փորձեր՝ ${wrong}<br>
+            Ժամանակ՝ ${document.getElementById('timer').innerText}
+        `;
+        const list = document.getElementById('wrong-list');
+        list.innerHTML = wrongWords.size > 0 ? Array.from(wrongWords).join(", ") : "Հրաշալի է, ոչ մի սխալ չկա:";
+    }
+</script>
+</body>
+</html>
